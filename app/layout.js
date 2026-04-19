@@ -12,7 +12,7 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#0f172a",
+  themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1, // Prevents annoying zoom on mobile inputs
