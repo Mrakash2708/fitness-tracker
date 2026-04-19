@@ -1,0 +1,16 @@
+{
+  "name": "Akash's Health Reset",
+  "short_name": "Health Reset",
+  "description": "Personal fitness and health tracker",
+  "start_url": "/tracker",
+  "display": "standalone",
+  "background_color": "#faf5ff",
+  "theme_color": "#faf5ff",
+  "icons": [
+    {
+      "src": "/globe.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
