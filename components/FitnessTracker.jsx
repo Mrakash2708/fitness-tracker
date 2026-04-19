@@ -166,6 +166,7 @@ export default function FitnessTracker() {
   const [syncStatus, setSyncStatus] = useState('');
   const saveTimer = useRef(null);
   const hasLoadedCloud = useRef(false);
+  const lastSavedStateRef = useRef('');
 
   // --- Merge helper: pick whichever has the latest data ---
   const mergeState = useCallback((local, cloud) => {
@@ -206,13 +207,21 @@ export default function FitnessTracker() {
              setState(s => {
                 const merged = mergeState(s, cloud);
                 if (merged && merged.date === getTodayKey()) {
-                  return { ...s, ...merged, mealSelections: merged.mealSelections || s.mealSelections };
+                  const newState = { ...s, ...merged, mealSelections: merged.mealSelections || s.mealSelections };
+                  
+                  const sCopy = { ...s }; delete sCopy.updatedAt;
+                  const newCopy = { ...newState }; delete newCopy.updatedAt;
+                  
+                  if (JSON.stringify(sCopy) !== JSON.stringify(newCopy)) {
+                     setSyncStatus('synced');
+                     setTimeout(() => setSyncStatus(''), 2000);
+                     return newState;
+                  }
+                  return s;
                 }
                 return s;
              });
              hasLoadedCloud.current = true;
-             setSyncStatus('synced');
-             setTimeout(() => setSyncStatus(''), 2000);
           } else {
              hasLoadedCloud.current = true;
           }
@@ -231,11 +240,20 @@ export default function FitnessTracker() {
   useEffect(() => {
     if (!mounted) return;
     saveState(state);
-    // Debounce Firebase save (500ms), only if cloud data is already loaded
-    if (user && hasLoadedCloud.current) {
+    
+    const stateToSave = { ...state };
+    delete stateToSave.updatedAt;
+    const currentStateStr = JSON.stringify(stateToSave);
+
+    // Debounce Firebase save (500ms), only if cloud data is already loaded and changed
+    if (user && hasLoadedCloud.current && currentStateStr !== lastSavedStateRef.current) {
+      lastSavedStateRef.current = currentStateStr;
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
+        setSyncStatus('syncing');
         await saveProgress(user.uid, { ...state, updatedAt: new Date().toISOString() });
+        setSyncStatus('synced');
+        setTimeout(() => setSyncStatus(''), 2000);
       }, 500);
     }
   }, [state, mounted, user]);
