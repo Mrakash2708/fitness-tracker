@@ -513,26 +513,26 @@ export default function FitnessTracker() {
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                       <thead>
-                        <tr style={{ borderBottom: '2px solid #ede9fe' }}>
-                          <th style={{ textAlign: 'left', padding: '8px 6px', color: '#7c3aed', fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '.5px' }}>Exercise</th>
-                          <th style={{ textAlign: 'center', padding: '8px 6px', color: '#7c3aed', fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '.5px' }}>Sets × Reps</th>
-                          <th style={{ textAlign: 'center', padding: '8px 6px', color: '#7c3aed', fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '.5px' }}>Rest</th>
-                          <th style={{ textAlign: 'left', padding: '8px 6px', color: '#7c3aed', fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '.5px' }}>Notes</th>
+                        <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
+                          <th style={{ textAlign: 'left', padding: '8px 6px', color: '#c4b5fd', fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '.5px' }}>Exercise</th>
+                          <th style={{ textAlign: 'center', padding: '8px 6px', color: '#c4b5fd', fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '.5px' }}>Sets × Reps</th>
+                          <th style={{ textAlign: 'center', padding: '8px 6px', color: '#c4b5fd', fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '.5px' }}>Rest</th>
+                          <th style={{ textAlign: 'left', padding: '8px 6px', color: '#c4b5fd', fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '.5px' }}>Notes</th>
                         </tr>
                       </thead>
                       <tbody>
                         {day.exercises.map((ex, i) => (
-                          <tr key={i} style={{ borderBottom: '1px solid #f5f3ff' }}>
-                            <td style={{ padding: '10px 6px', fontWeight: 600, color: '#1e293b' }}>{ex.name}</td>
-                            <td style={{ padding: '10px 6px', textAlign: 'center', fontWeight: 700, color: '#7c3aed' }}>{ex.sets}</td>
-                            <td style={{ padding: '10px 6px', textAlign: 'center', color: '#64748b' }}>{ex.rest}</td>
+                          <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                            <td style={{ padding: '10px 6px', fontWeight: 600, color: '#f8fafc' }}>{ex.name}</td>
+                            <td style={{ padding: '10px 6px', textAlign: 'center', fontWeight: 700, color: '#a855f7' }}>{ex.sets}</td>
+                            <td style={{ padding: '10px 6px', textAlign: 'center', color: '#94a3b8' }}>{ex.rest}</td>
                             <td style={{ padding: '10px 6px', color: '#94a3b8', fontStyle: ex.note ? 'italic' : 'normal' }}>{ex.note || '—'}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  <div style={{ marginTop: '12px', padding: '10px 14px', background: 'linear-gradient(135deg, #faf5ff, #f0fdf4)', borderRadius: '12px', fontSize: '12px', fontWeight: 700, color: '#15803d', border: '1px solid #bbf7d0' }}>
+                  <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(21, 128, 61, 0.2)', borderRadius: '12px', fontSize: '12px', fontWeight: 700, color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
                     🏃 Finisher: {day.cardio}
                   </div>
                 </div>
