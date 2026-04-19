@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './FitnessTracker.module.css';
+import { signInWithGoogle, logOut, onAuth, saveProgress, loadProgress } from '../lib/firebase';
 
 const STORAGE_KEY = 'akash_tracker_v2';
 const loadState = () => { if (typeof window === 'undefined') return null; try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : null; } catch { return null; } };
@@ -161,7 +162,27 @@ export default function FitnessTracker() {
   const [expandedAvoid, setExpandedAvoid] = useState(null);
   const [customInputs, setCustomInputs] = useState({ protein: '', water: '', steps: '' });
   const [showCustom, setShowCustom] = useState({ protein: false, water: false, steps: false });
+  const [user, setUser] = useState(null);
+  const [syncStatus, setSyncStatus] = useState('');
+  const saveTimer = useRef(null);
 
+  // --- Merge helper: pick whichever has the latest data ---
+  const mergeState = useCallback((local, cloud) => {
+    if (!cloud) return local;
+    if (!local) return cloud;
+    // If cloud is for today and local isn't (or vice-versa), prefer today's
+    const today = getTodayKey();
+    if (cloud.date === today && local.date !== today) return cloud;
+    if (local.date === today && cloud.date !== today) return local;
+    // Both same day: pick whichever was updated more recently
+    if (cloud.updatedAt && local.updatedAt) {
+      return cloud.updatedAt > local.updatedAt ? cloud : local;
+    }
+    // Prefer cloud when both are for today (cloud is the source of truth)
+    return cloud.date === today ? cloud : local;
+  }, []);
+
+  // --- Init: load local state, then listen to auth ---
   useEffect(() => {
     const saved = loadState();
     if (saved) {
@@ -172,9 +193,37 @@ export default function FitnessTracker() {
       }
     }
     setMounted(true);
-  }, []);
 
-  useEffect(() => { if (mounted) saveState(state); }, [state, mounted]);
+    // Listen for auth state changes
+    const unsub = onAuth(async (firebaseUser) => {
+      setUser(firebaseUser);
+      if (firebaseUser) {
+        setSyncStatus('syncing');
+        const cloud = await loadProgress(firebaseUser.uid);
+        const local = loadState();
+        const merged = mergeState(local, cloud);
+        if (merged && merged.date === getTodayKey()) {
+          setState(s => ({ ...s, ...merged, mealSelections: merged.mealSelections || s.mealSelections }));
+        }
+        setSyncStatus('synced');
+        setTimeout(() => setSyncStatus(''), 2000);
+      }
+    });
+    return () => unsub();
+  }, [mergeState]);
+
+  // --- Save: localStorage instantly, Firebase debounced ---
+  useEffect(() => {
+    if (!mounted) return;
+    saveState(state);
+    // Debounce Firebase save (500ms)
+    if (user) {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(async () => {
+        await saveProgress(user.uid, { ...state, updatedAt: new Date().toISOString() });
+      }, 500);
+    }
+  }, [state, mounted, user]);
 
   const updateField = (k, v) => setState(s => ({ ...s, [k]: v }));
   const toggleCheck = (id) => setState(s => ({ ...s, checklist: { ...s.checklist, [id]: !s.checklist[id] } }));
@@ -226,11 +275,42 @@ export default function FitnessTracker() {
     </section>
   );
 
+  const handleSignIn = async () => {
+    try {
+      setSyncStatus('signing-in');
+      await signInWithGoogle();
+    } catch (e) {
+      console.error('Sign-in error:', e);
+      setSyncStatus('');
+    }
+  };
+
+  const handleSignOut = async () => {
+    await logOut();
+    setUser(null);
+    setSyncStatus('');
+  };
+
   return (
     <div className={styles.wrap}>
       <header className={styles.hero}>
         <h1>Akash&apos;s Health Reset</h1>
         <p>🔥 3-6 month transformation · Daily tracker</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+          {user ? (
+            <>
+              <img src={user.photoURL} alt="" style={{ width: 28, height: 28, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.5)' }} />
+              <span style={{ fontSize: '13px', opacity: 0.9 }}>{user.displayName?.split(' ')[0]}</span>
+              {syncStatus === 'synced' && <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '3px 10px', borderRadius: '12px' }}>☁️ Synced</span>}
+              {syncStatus === 'syncing' && <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '3px 10px', borderRadius: '12px' }}>⏳ Syncing…</span>}
+              <button onClick={handleSignOut} style={{ fontSize: '11px', background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '4px 12px', borderRadius: '12px', cursor: 'pointer' }}>Sign out</button>
+            </>
+          ) : (
+            <button onClick={handleSignIn} style={{ fontSize: '13px', background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '6px 16px', borderRadius: '16px', cursor: 'pointer', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>☁️</span> Sign in to sync across devices
+            </button>
+          )}
+        </div>
       </header>
 
       <nav className={styles.tabs}>
