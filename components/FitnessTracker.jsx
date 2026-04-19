@@ -167,6 +167,18 @@ export default function FitnessTracker() {
   const saveTimer = useRef(null);
   const hasLoadedCloud = useRef(false);
   const lastSavedStateRef = useRef('');
+  const isSavingRef = useRef(false);
+
+  const isSameState = (s1, s2) => {
+    if (!s1 || !s2) return false;
+    return s1.protein === s2.protein &&
+           s1.water === s2.water &&
+           s1.steps === s2.steps &&
+           s1.weight === s2.weight &&
+           s1.date === s2.date &&
+           JSON.stringify(s1.checklist || {}) === JSON.stringify(s2.checklist || {}) &&
+           JSON.stringify(s1.mealSelections || {}) === JSON.stringify(s2.mealSelections || {});
+  };
 
   // --- Merge helper: pick whichever has the latest data ---
   const mergeState = useCallback((local, cloud) => {
@@ -209,12 +221,12 @@ export default function FitnessTracker() {
                 if (merged && merged.date === getTodayKey()) {
                   const newState = { ...s, ...merged, mealSelections: merged.mealSelections || s.mealSelections };
                   
-                  const sCopy = { ...s }; delete sCopy.updatedAt;
-                  const newCopy = { ...newState }; delete newCopy.updatedAt;
-                  
-                  if (JSON.stringify(sCopy) !== JSON.stringify(newCopy)) {
-                     setSyncStatus('synced');
-                     setTimeout(() => setSyncStatus(''), 2000);
+                  if (!isSameState(s, newState)) {
+                     lastSavedStateRef.current = JSON.stringify(newState);
+                     if (!isSavingRef.current) {
+                       setSyncStatus('synced');
+                       setTimeout(() => setSyncStatus(''), 2000);
+                     }
                      return newState;
                   }
                   return s;
@@ -251,7 +263,9 @@ export default function FitnessTracker() {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
         setSyncStatus('syncing');
+        isSavingRef.current = true;
         await saveProgress(user.uid, { ...state, updatedAt: new Date().toISOString() });
+        setTimeout(() => { isSavingRef.current = false; }, 3000);
         setSyncStatus('synced');
         setTimeout(() => setSyncStatus(''), 2000);
       }, 500);
