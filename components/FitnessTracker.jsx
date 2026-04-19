@@ -166,19 +166,13 @@ export default function FitnessTracker() {
   const [syncStatus, setSyncStatus] = useState('');
   const saveTimer = useRef(null);
   const hasLoadedCloud = useRef(false);
-  const lastSavedStateRef = useRef(null);
-  const isSavingRef = useRef(false);
+  // Tracks the fingerprint of what we last pushed to Firestore,
+  // so the echo from onSnapshot doesn't re-trigger a save.
+  const lastPushedRef = useRef(null);
+  const syncTimer = useRef(null);
 
-  const isSameState = (s1, s2) => {
-    if (!s1 || !s2) return false;
-    return s1.protein === s2.protein &&
-           s1.water === s2.water &&
-           s1.steps === s2.steps &&
-           s1.weight === s2.weight &&
-           s1.date === s2.date &&
-           JSON.stringify(s1.checklist || {}) === JSON.stringify(s2.checklist || {}) &&
-           JSON.stringify(s1.mealSelections || {}) === JSON.stringify(s2.mealSelections || {});
-  };
+  const stateFingerprint = (s) =>
+    s ? `${s.protein}|${s.water}|${s.steps}|${s.weight}|${s.date}` : '';
 
   // --- Merge helper: pick whichever has the latest data ---
   const mergeState = useCallback((local, cloud) => {
@@ -213,59 +207,61 @@ export default function FitnessTracker() {
     const unsub = onAuth(async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        setSyncStatus('syncing');
         unsubSnapshot = listenProgress(firebaseUser.uid, (cloud) => {
+          if (!hasLoadedCloud.current) {
+            // First load: merge cloud into local state silently
+            hasLoadedCloud.current = true;
+            if (cloud && cloud.date === getTodayKey()) {
+              setState(s => ({ ...s, ...cloud, mealSelections: cloud.mealSelections || s.mealSelections }));
+              lastPushedRef.current = stateFingerprint(cloud);
+            }
+            return;
+          }
+
+          // Subsequent updates: only apply if it came from an external source
+          // (e.g. Apple Watch), not our own save echo.
           if (cloud) {
-             setState(s => {
-                const merged = mergeState(s, cloud);
-                if (merged && merged.date === getTodayKey()) {
-                  const newState = { ...s, ...merged, mealSelections: merged.mealSelections || s.mealSelections };
-                  
-                  if (!isSameState(s, newState)) {
-                     lastSavedStateRef.current = newState;
-                     if (!isSavingRef.current) {
-                       setSyncStatus('synced');
-                       setTimeout(() => setSyncStatus(''), 2000);
-                     }
-                     return newState;
-                  }
-                  return s;
-                }
-                return s;
-             });
-             hasLoadedCloud.current = true;
-          } else {
-             hasLoadedCloud.current = true;
+            const incomingFingerprint = stateFingerprint(cloud);
+            if (incomingFingerprint !== lastPushedRef.current && cloud.date === getTodayKey()) {
+              setState(s => ({ ...s, ...cloud, mealSelections: cloud.mealSelections || s.mealSelections }));
+              lastPushedRef.current = incomingFingerprint;
+              // Show synced badge for external updates (Apple Watch sync)
+              setSyncStatus('synced');
+              if (syncTimer.current) clearTimeout(syncTimer.current);
+              syncTimer.current = setTimeout(() => setSyncStatus(''), 2500);
+            }
           }
         });
       } else {
         if (unsubSnapshot) unsubSnapshot();
+        hasLoadedCloud.current = false;
       }
     });
     return () => {
       unsub();
       if (unsubSnapshot) unsubSnapshot();
     };
-  }, [mergeState]);
+  }, []);
 
   // --- Save: localStorage instantly, Firebase debounced ---
   useEffect(() => {
     if (!mounted) return;
     saveState(state);
 
-    // Debounce Firebase save (500ms), only if cloud data is already loaded and changed
-    if (user && hasLoadedCloud.current && !isSameState(state, lastSavedStateRef.current)) {
-      lastSavedStateRef.current = state;
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(async () => {
-        setSyncStatus('syncing');
-        isSavingRef.current = true;
-        await saveProgress(user.uid, { ...state, updatedAt: new Date().toISOString() });
-        setTimeout(() => { isSavingRef.current = false; }, 3000);
-        setSyncStatus('synced');
-        setTimeout(() => setSyncStatus(''), 2000);
-      }, 500);
-    }
+    if (!user || !hasLoadedCloud.current) return;
+
+    const fingerprint = stateFingerprint(state);
+    if (fingerprint === lastPushedRef.current) return; // nothing changed
+
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      lastPushedRef.current = fingerprint; // lock before saving to suppress echo
+      setSyncStatus('syncing');
+      await saveProgress(user.uid, { ...state, updatedAt: new Date().toISOString() });
+      setSyncStatus('synced');
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+      syncTimer.current = setTimeout(() => setSyncStatus(''), 2500);
+    }, 600);
   }, [state, mounted, user]);
 
   const updateField = (k, v) => setState(s => ({ ...s, [k]: v }));
