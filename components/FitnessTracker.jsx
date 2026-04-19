@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './FitnessTracker.module.css';
-import { signInWithGoogle, logOut, onAuth, saveProgress, loadProgress } from '../lib/firebase';
+import { signInWithGoogle, logOut, onAuth, saveProgress, loadProgress, listenProgress } from '../lib/firebase';
 
 const STORAGE_KEY = 'akash_tracker_v2';
 const loadState = () => { if (typeof window === 'undefined') return null; try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : null; } catch { return null; } };
@@ -165,6 +165,7 @@ export default function FitnessTracker() {
   const [user, setUser] = useState(null);
   const [syncStatus, setSyncStatus] = useState('');
   const saveTimer = useRef(null);
+  const hasLoadedCloud = useRef(false);
 
   // --- Merge helper: pick whichever has the latest data ---
   const mergeState = useCallback((local, cloud) => {
@@ -195,29 +196,43 @@ export default function FitnessTracker() {
     setMounted(true);
 
     // Listen for auth state changes
+    let unsubSnapshot;
     const unsub = onAuth(async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
         setSyncStatus('syncing');
-        const cloud = await loadProgress(firebaseUser.uid);
-        const local = loadState();
-        const merged = mergeState(local, cloud);
-        if (merged && merged.date === getTodayKey()) {
-          setState(s => ({ ...s, ...merged, mealSelections: merged.mealSelections || s.mealSelections }));
-        }
-        setSyncStatus('synced');
-        setTimeout(() => setSyncStatus(''), 2000);
+        unsubSnapshot = listenProgress(firebaseUser.uid, (cloud) => {
+          if (cloud) {
+             setState(s => {
+                const merged = mergeState(s, cloud);
+                if (merged && merged.date === getTodayKey()) {
+                  return { ...s, ...merged, mealSelections: merged.mealSelections || s.mealSelections };
+                }
+                return s;
+             });
+             hasLoadedCloud.current = true;
+             setSyncStatus('synced');
+             setTimeout(() => setSyncStatus(''), 2000);
+          } else {
+             hasLoadedCloud.current = true;
+          }
+        });
+      } else {
+        if (unsubSnapshot) unsubSnapshot();
       }
     });
-    return () => unsub();
+    return () => {
+      unsub();
+      if (unsubSnapshot) unsubSnapshot();
+    };
   }, [mergeState]);
 
   // --- Save: localStorage instantly, Firebase debounced ---
   useEffect(() => {
     if (!mounted) return;
     saveState(state);
-    // Debounce Firebase save (500ms)
-    if (user) {
+    // Debounce Firebase save (500ms), only if cloud data is already loaded
+    if (user && hasLoadedCloud.current) {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
         await saveProgress(user.uid, { ...state, updatedAt: new Date().toISOString() });
