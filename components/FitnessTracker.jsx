@@ -166,7 +166,7 @@ export default function FitnessTracker() {
   const [syncStatus, setSyncStatus] = useState('');
   const saveTimer = useRef(null);
   const hasLoadedCloud = useRef(false);
-  const lastSavedStateRef = useRef('');
+  const lastSavedStateRef = useRef(null);
   const isSavingRef = useRef(false);
 
   const isSameState = (s1, s2) => {
@@ -222,7 +222,7 @@ export default function FitnessTracker() {
                   const newState = { ...s, ...merged, mealSelections: merged.mealSelections || s.mealSelections };
                   
                   if (!isSameState(s, newState)) {
-                     lastSavedStateRef.current = JSON.stringify(newState);
+                     lastSavedStateRef.current = newState;
                      if (!isSavingRef.current) {
                        setSyncStatus('synced');
                        setTimeout(() => setSyncStatus(''), 2000);
@@ -252,14 +252,10 @@ export default function FitnessTracker() {
   useEffect(() => {
     if (!mounted) return;
     saveState(state);
-    
-    const stateToSave = { ...state };
-    delete stateToSave.updatedAt;
-    const currentStateStr = JSON.stringify(stateToSave);
 
     // Debounce Firebase save (500ms), only if cloud data is already loaded and changed
-    if (user && hasLoadedCloud.current && currentStateStr !== lastSavedStateRef.current) {
-      lastSavedStateRef.current = currentStateStr;
+    if (user && hasLoadedCloud.current && !isSameState(state, lastSavedStateRef.current)) {
+      lastSavedStateRef.current = state;
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
         setSyncStatus('syncing');
