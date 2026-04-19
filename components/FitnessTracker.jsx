@@ -296,18 +296,18 @@ export default function FitnessTracker() {
       <header className={styles.hero}>
         <h1>Akash&apos;s Health Reset</h1>
         <p>🔥 3-6 month transformation · Daily tracker</p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
           {user ? (
             <>
-              <img src={user.photoURL} alt="" style={{ width: 28, height: 28, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.5)' }} />
-              <span style={{ fontSize: '13px', opacity: 0.9 }}>{user.displayName?.split(' ')[0]}</span>
-              {syncStatus === 'synced' && <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '3px 10px', borderRadius: '12px' }}>☁️ Synced</span>}
-              {syncStatus === 'syncing' && <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '3px 10px', borderRadius: '12px' }}>⏳ Syncing…</span>}
-              <button onClick={handleSignOut} style={{ fontSize: '11px', background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '4px 12px', borderRadius: '12px', cursor: 'pointer' }}>Sign out</button>
+              <img src={user.photoURL} alt="" style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} />
+              <span style={{ fontSize: '14px', fontWeight: 600, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>{user.displayName?.split(' ')[0]}</span>
+              {syncStatus === 'synced' && <span style={{ fontSize: '11px', fontWeight: 600, background: 'rgba(255,255,255,0.25)', color: '#fff', padding: '4px 10px', borderRadius: '12px', backdropFilter: 'blur(4px)' }}>☁️ Synced</span>}
+              {syncStatus === 'syncing' && <span style={{ fontSize: '11px', fontWeight: 600, background: 'rgba(255,255,255,0.25)', color: '#fff', padding: '4px 10px', borderRadius: '12px', backdropFilter: 'blur(4px)' }}>⏳ Syncing…</span>}
+              <button onClick={handleSignOut} style={{ fontSize: '12px', fontWeight: 600, background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', padding: '6px 14px', borderRadius: '16px', cursor: 'pointer' }}>Sign out</button>
             </>
           ) : (
-            <button onClick={handleSignIn} style={{ fontSize: '13px', background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '6px 16px', borderRadius: '16px', cursor: 'pointer', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>☁️</span> Sign in to sync across devices
+            <button onClick={handleSignIn} style={{ fontSize: '14px', fontWeight: 700, background: '#ffffff', color: '#9333ea', border: 'none', padding: '10px 20px', borderRadius: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+              <span style={{ fontSize: '18px' }}>☁️</span> Sign in to sync across devices
             </button>
           )}
         </div>
