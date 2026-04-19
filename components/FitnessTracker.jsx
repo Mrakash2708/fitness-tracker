@@ -154,14 +154,12 @@ const STATS = [
 export default function FitnessTracker() {
   const [tab, setTab] = useState('today');
   const [state, setState] = useState({
-    protein: 0, water: 0, steps: 0, weight: 81, checklist: {},
+    weight: 81, checklist: {},
     mealSelections: { breakfast: null, lunch: null, dinner: null, snack: null },
     date: getTodayKey(),
   });
   const [mounted, setMounted] = useState(false);
   const [expandedAvoid, setExpandedAvoid] = useState(null);
-  const [customInputs, setCustomInputs] = useState({ protein: '', water: '', steps: '' });
-  const [showCustom, setShowCustom] = useState({ protein: false, water: false, steps: false });
   const [user, setUser] = useState(null);
   const [syncStatus, setSyncStatus] = useState('');
   const saveTimer = useRef(null);
@@ -172,7 +170,7 @@ export default function FitnessTracker() {
   const syncTimer = useRef(null);
 
   const stateFingerprint = (s) =>
-    s ? `${s.protein}|${s.water}|${s.steps}|${s.weight}|${s.date}` : '';
+    s ? `${s.weight}|${s.date}` : '';
 
   // --- Merge helper: pick whichever has the latest data ---
   const mergeState = useCallback((local, cloud) => {
@@ -195,7 +193,7 @@ export default function FitnessTracker() {
     const saved = loadState();
     if (saved) {
       if (saved.date !== getTodayKey()) {
-        setState({ ...saved, protein: 0, water: 0, steps: 0, checklist: {}, mealSelections: { breakfast: null, lunch: null, dinner: null, snack: null }, date: getTodayKey() });
+        setState({ ...saved, checklist: {}, mealSelections: { breakfast: null, lunch: null, dinner: null, snack: null }, date: getTodayKey() });
       } else {
         setState(s => ({ ...s, ...saved, mealSelections: saved.mealSelections || { breakfast: null, lunch: null, dinner: null, snack: null } }));
       }
@@ -267,16 +265,6 @@ export default function FitnessTracker() {
   const updateField = (k, v) => setState(s => ({ ...s, [k]: v }));
   const toggleCheck = (id) => setState(s => ({ ...s, checklist: { ...s.checklist, [id]: !s.checklist[id] } }));
   const selectMeal = (category, day) => setState(s => ({ ...s, mealSelections: { ...s.mealSelections, [category]: s.mealSelections[category] === day ? null : day } }));
-  const pct = (v, t) => Math.min(100, Math.round((v / t) * 100));
-
-  const applyCustom = (key, isFixed) => {
-    const val = parseFloat(customInputs[key]);
-    if (!isNaN(val) && val >= 0) {
-      updateField(key, isFixed ? +val.toFixed(2) : Math.round(val));
-      setCustomInputs(c => ({ ...c, [key]: '' }));
-      setShowCustom(s => ({ ...s, [key]: false }));
-    }
-  };
 
   const todayDayName = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
 
@@ -334,7 +322,7 @@ export default function FitnessTracker() {
     <div className={styles.wrap}>
       <header className={styles.hero}>
         <h1>Akash&apos;s Health Reset</h1>
-        <p>🔥 3-6 month transformation · Daily tracker</p>
+        <p>🥗 Nutrition & 💪 Fitness · Your daily guide</p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
           {user ? (
             <>
@@ -353,80 +341,73 @@ export default function FitnessTracker() {
       </header>
 
       <nav className={styles.tabs}>
-        {[['today', '📋 Today'], ['meals', '🍽️ Meals'], ['diet', '🥗 Diet'], ['gym', '💪 Gym'], ['stats', '📊 Stats']].map(([key, label]) => (
+        {[['today', '🏠 Home'], ['meals', '🍽️ Meals'], ['diet', '🥗 Nutrition'], ['gym', '💪 Gym'], ['stats', '📊 Health']].map(([key, label]) => (
           <button key={key} className={`${styles.tab} ${tab === key ? styles.tabActive : ''}`} onClick={() => setTab(key)}>{label}</button>
         ))}
       </nav>
 
       {tab === 'today' && (
         <div>
-          <section className={styles.card}>
-            <h2>⚡ Daily targets</h2>
-            {[
-              { label: 'Protein', val: state.protein, target: 120, unit: 'g', placeholder: 'e.g. 45', btns: [[-10, '-10g'], [10, '+10g'], [25, '+25g']], key: 'protein' },
-              { label: 'Water', val: state.water, target: 3, unit: 'L', placeholder: 'e.g. 0.5', btns: [[-0.25, '-250ml'], [0.25, '+250ml'], [0.5, '+500ml']], key: 'water', fixed: true },
-              { label: 'Steps', val: state.steps, target: 8000, unit: '', placeholder: 'e.g. 3500', btns: [[-500, '-500'], [1000, '+1K'], [2500, '+2.5K']], key: 'steps' },
-            ].map(item => (
-              <div key={item.key} className={styles.progressBlock}>
-                <div className={styles.progressTop}>
-                  <span>{item.label}</span>
-                  <span>{item.fixed ? item.val.toFixed(1) : item.val.toLocaleString()} / {item.target.toLocaleString()}{item.unit}</span>
-                </div>
-                <div className={styles.progressBg}>
-                  <div className={styles.progressFill} style={{ width: `${pct(item.val, item.target)}%` }} />
-                </div>
-                <div className={styles.btnRow}>
-                  {item.btns.map(([amt, lbl]) => (
-                    <button key={lbl} onClick={() => updateField(item.key, item.fixed ? Math.max(0, +(item.val + amt).toFixed(2)) : Math.max(0, item.val + amt))}>{lbl}</button>
-                  ))}
-                  <button
-                    onClick={() => setShowCustom(s => ({ ...s, [item.key]: !s[item.key] }))}
-                    style={showCustom[item.key] ? { background: 'linear-gradient(135deg, #7c3aed, #a855f7)', color: '#fff', borderColor: 'transparent' } : {}}
-                  >✏️</button>
-                </div>
-                {showCustom[item.key] && (
-                  <div className={styles.customRow}>
-                    <input
-                      type="number"
-                      className={styles.customInput}
-                      placeholder={item.placeholder}
-                      value={customInputs[item.key]}
-                      step={item.fixed ? '0.1' : '1'}
-                      onChange={e => setCustomInputs(c => ({ ...c, [item.key]: e.target.value }))}
-                      onKeyDown={e => { if (e.key === 'Enter') applyCustom(item.key, item.fixed); }}
-                    />
-                    <button className={styles.customSetBtn} onClick={() => applyCustom(item.key, item.fixed)}>Set exact</button>
-                    <button className={styles.customAddBtn} onClick={() => {
-                      const val = parseFloat(customInputs[item.key]);
-                      if (!isNaN(val) && val > 0) {
-                        updateField(item.key, item.fixed ? Math.max(0, +(item.val + val).toFixed(2)) : Math.max(0, item.val + Math.round(val)));
-                        setCustomInputs(c => ({ ...c, [item.key]: '' }));
-                      }
-                    }}>+ Add</button>
+          {/* Today banner */}
+          <section className={styles.card} style={{ background: 'linear-gradient(135deg, #faf5ff, #fdf2f8)', border: '1.5px solid #e9d5ff' }}>
+            <h2>📅 {todayDayName}day — {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })}</h2>
+            <p className={styles.hint} style={{ fontSize: '13px', marginBottom: '12px' }}>Here&apos;s your nutrition &amp; gym plan for today. Follow the habits below and check them off!</p>
+            {/* Today's gym */}
+            {(() => {
+              const todayGym = GYM_SPLIT.find(g => g.day === todayDayName) || GYM_SPLIT[6];
+              return (
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(124,58,237,0.08)', borderRadius: '12px', padding: '12px 16px', border: '1px solid rgba(124,58,237,0.18)' }}>
+                  <span style={{ fontSize: '28px' }}>💪</span>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '15px', color: '#7c3aed' }}>{todayGym.focus}</div>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{todayGym.detail}</div>
+                    <div style={{ fontSize: '11px', color: '#a855f7', fontWeight: 700, marginTop: '4px' }}>⏱ {todayGym.duration} · <span onClick={() => setTab('gym')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>See full workout →</span></div>
                   </div>
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })()}
+            {/* Today's meals quick view */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
+              {[
+                { label: '🌅 Breakfast', opts: BREAKFAST_OPTIONS },
+                { label: '☀️ Lunch', opts: LUNCH_OPTIONS },
+                { label: '🫖 Snack', opts: SNACK_OPTIONS },
+                { label: '🌙 Dinner', opts: DINNER_OPTIONS },
+              ].map(({ label, opts }) => {
+                const meal = opts.find(o => o.day === todayDayName);
+                return (
+                  <div key={label} style={{ background: 'rgba(255,255,255,0.7)', borderRadius: '10px', padding: '10px 12px', border: '1px solid #f1e8ff' }}>
+                    <div style={{ fontWeight: 700, fontSize: '12px', color: '#9333ea', marginBottom: '4px' }}>{label}</div>
+                    <div style={{ fontSize: '12px', color: '#334155', lineHeight: 1.4 }}>{meal?.meal || '—'}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginTop: '10px', fontSize: '11px', color: '#a855f7', fontWeight: 600, cursor: 'pointer' }} onClick={() => setTab('meals')}>🍽️ View full meal plan with selections →</div>
           </section>
 
           <section className={styles.card}>
-            <h2>✅ Today&apos;s checklist</h2>
+            <h2>✅ Daily habits checklist</h2>
+            <p className={styles.hint} style={{ marginBottom: '12px', fontSize: '13px' }}>Tick off each habit as you go — consistency is everything.</p>
             {DEFAULT_CHECKLIST.map(item => (
               <label key={item.id} className={`${styles.checkItem} ${state.checklist[item.id] ? styles.checkDone : ''}`}>
                 <input type="checkbox" checked={!!state.checklist[item.id]} onChange={() => toggleCheck(item.id)} />
                 <span>{item.label}</span>
               </label>
             ))}
+            <div style={{ marginTop: '12px', fontSize: '13px', color: '#64748b', fontWeight: 600 }}>
+              {Object.values(state.checklist).filter(Boolean).length} / {DEFAULT_CHECKLIST.length} habits done today
+            </div>
           </section>
 
           <section className={styles.card}>
-            <h2>⚖️ Weekly weight</h2>
+            <h2>⚖️ Weight log</h2>
             <div className={styles.weightRow}>
               <span className={styles.weightLabel}>Current:</span>
               <input type="number" className={styles.weightInput} value={state.weight} step="0.1" onChange={e => updateField('weight', parseFloat(e.target.value) || 0)} />
               <span className={styles.weightLabel}>kg</span>
             </div>
-            <p className={styles.hint}>Target: 75 kg by end of Month 3</p>
+            <p className={styles.hint}>Target: 75 kg · Starting: 81 kg · Deficit: ~400 kcal/day</p>
           </section>
         </div>
       )}
